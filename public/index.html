@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <title>Unpaid Customer Payments</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+
+    body {
+
+      font-family: 'Segoe UI', sans-serif;
+
+      background-color: #f9fafb;
+
+      padding: 2rem;
+
+      margin: 0;
+
+      visibility: hidden;
+
+    }
+
+    body.loaded {
+
+      visibility: visible;
+
+    }
+
+    h1 { text-align: center; color: #1f2937; }
+
+    .filter, #dataTable, .download-container, #logoutButton { display: none; }
+
+    select { padding: 0.6rem; font-size: 1rem; border-radius: 4px; border: 1px solid #d1d5db; margin: 0 0.5rem; }
+
+    button { padding: 0.6rem 1rem; font-size: 1rem; border-radius: 4px; background-color: #3b82f6; color: white; border: none; cursor: pointer; margin: 0.5rem; }
+
+    button:disabled { background-color: grey; cursor: not-allowed; }
+
+    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); margin-top: 1rem; }
+
+    th, td { padding: 0.75rem; border-bottom: 1px solid #eee; text-align: left; }
+
+    th { background-color: #f3f4f6; font-weight: 600; }
+
+    tr:hover { background-color: #f9f9f9; }
+
+    .tag { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: white; }
+
+    .Final { background: #3b82f6; }
+
+    .Second { background: #10b981; }
+
+    #loading { text-align: center; margin: 2rem; font-size: 1.2rem; color: #4b5563; }
+
+    .error { text-align: center; color: #dc2626; margin: 1rem; display: none; }
+
+    .download-container { text-align: center; }
+
+    .pdf-table { width: 100%; border-collapse: collapse; background: white; font-family: 'Segoe UI', sans-serif; }
+
+    .pdf-table th, .pdf-table td { padding: 15px; border: 1px solid #eee; text-align: left; font-size: 20px; }
+
+    .pdf-table th { background-color: #f3f4f6; font-weight: 600; }
+
+    .pdf-table .tag { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 18px; color: white; }
+
+    .pdf-table .Final { background: #3b82f6; }
+
+    .pdf-table .Second { background: #10b981; }
+
+    .pdf-table th:nth-child(1), .pdf-table td:nth-child(1) { width: 15%; }
+
+    .pdf-table th:nth-child(2), .pdf-table td:nth-child(2) { width: 10%; }
+
+    .pdf-table th:nth-child(3), .pdf-table td:nth-child(3) { width: 15%; }
+
+    .pdf-table th:nth-child(4), .pdf-table td:nth-child(4) { width: 8%; }
+
+    .pdf-table th:nth-child(5), .pdf-table td:nth-child(5) { width: 8%; }
+
+    .pdf-table th:nth-child(6), .pdf-table td:nth-child(6) { width: 8%; }
+
+    .pdf-table th:nth-child(7), .pdf-table td:nth-child(7) { width: 8%; }
+
+    .pdf-table th:nth-child(8), .pdf-table td:nth-child(8) { width: 8%; }
+
+    .pdf-table th:nth-child(9), .pdf-table td:nth-child(9) { width: 10%; }
+
+    .pdf-table th:nth-child(10), .pdf-table td:nth-child(10) { width: 10%; }
+
+    .pin-login { text-align: center; margin: 2rem 0; }
+
+    .pin-login input { padding: 0.6rem; font-size: 1rem; border-radius: 4px; border: 1px solid #d1d5db; width: 150px; margin-right: 0.5rem; }
+
+    .pin-error { color: #dc2626; margin-top: 0.5rem; display: none; font-size: 1rem; }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div id="pin-login" class="pin-login">
+
+    <h2>Enter PIN</h2>
+
+    <input type="password" id="pinInput" placeholder="Enter PIN" autocomplete="off" inputmode="numeric" />
+
+    <button id="loginPinButton">Submit</button>
+
+    <div id="pinError" class="pin-error"></div>
+
+  </div>
+
+  <div id="main-content">
+
+    <h1>Unpaid Customer Payments</h1>
+
+    <div class="filter">
+
+      <label for="monthFilter">Filter by Due Month: </label>
+
+      <select id="monthFilter"><option value="">All</option></select>
+
+    </div>
+
+    <div id="loading">Loading data...</div>
+
+    <div id="error" class="error"></div>
+
+    <table id="dataTable">
+
+      <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Hunt Price</th><th>Balance</th><th>Arrival</th><th>Amount Due</th><th>Due Date</th><th>Due Month</th><th>Payment Type</th></tr></thead>
+
+      <tbody></tbody>
+
+    </table>
+
+    <div class="download-container">
+
+      <button id="downloadJpegButton" disabled>Download JPEG</button>
+
+      <button id="downloadPdfButton" disabled>Download PDF</button>
+
+      <button id="logoutButton">Logout</button>
+
+    </div>
+
+  </div>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+
+    const { jsPDF } = window.jspdf || {};
+
+    const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRORuP9WdQbA9CAyKbl0iXH9MTrK5SiHrv0v_K4Uo3Wp5UJ2XFk-M76r0SlSxKvRYfDdJRU2tnRhWjQ/pub?output=csv&gid=";
+
+    const gids = [1785512967, 1617483465, 356033448, 1218190710, 1161372395, 1016159926, 33447697, 261283006, 595368652, 1969330734, 330168738, 832417831];
+
+    const tableData = [];
+
+
+    const pinLogin = document.getElementById("pin-login");
+
+    const pinInput = document.getElementById("pinInput");
+
+    const loginPinButton = document.getElementById("loginPinButton");
+
+    const pinError = document.getElementById("pinError");
+
+    const mainContent = document.getElementById("main-content");
+
+    const monthFilter = document.getElementById("monthFilter");
+
+    const downloadJpegButton = document.getElementById("downloadJpegButton");
+
+    const downloadPdfButton = document.getElementById("downloadPdfButton");
+
+    const logoutButton = document.getElementById("logoutButton");
+
+    const errorDiv = document.getElementById("error");
+
+
+    // Initialize UI based on authentication state
+
+    if (sessionStorage.getItem('authToken')) {
+
+      console.log('Authentication found. Showing main content.');
+
+      pinLogin.style.display = 'none';
+
+      mainContent.style.display = 'block';
+
+      fetchAllTabs();
+
+    } else {
+
+      console.log('No authentication found. Showing PIN form.');
+
+      pinLogin.style.display = 'block';
+
+      mainContent.style.display = 'none';
+
+    }
+
+
+    // PIN submission handler
+
+    loginPinButton.addEventListener("click", async () => {
+
+      loginPinButton.disabled = true;
+
+      pinError.style.display = "none";
+
+      errorDiv.style.display = "none";
+
+
+      const pin = pinInput.value.trim().replace(/[^0-9]/g, '');
+
+      if (!pin) {
+
+        pinError.textContent = "Please enter a PIN.";
+
+        pinError.style.display = "block";
+
+        loginPinButton.disabled = false;
+
+        return;
+
+      }
+
+
+      console.log('Submitting PIN:', pin);
+
+
+      try {
+
+        const response = await fetch('/api/validate-pin', {
+
+          method: 'POST',
+
+          headers: { 'Content-Type': 'application/json' },
+
+          body: JSON.stringify({ pin })
+
+        });
+
+        const data = await response.json();
+
+
+        if (response.ok) {
+
+          console.log('PIN validated successfully.');
+
+          sessionStorage.setItem('authToken', data.token);
+
+          pinLogin.style.display = 'none';
+
+          mainContent.style.display = 'block';
+
+          pinInput.value = '';
+
+          fetchAllTabs();
+
+        } else {
+
+          console.log('PIN validation failed:', data.error);
+
+          pinError.textContent = data.error;
+
+          pinError.style.display = 'block';
+
+          pinInput.value = '';
+
+        }
+
+      } catch (err) {
+
+        console.error('PIN validation error:', err);
+
+        pinError.textContent = 'Error validating PIN. Please try again.';
+
+        pinError.style.display = 'block';
+
+      } finally {
+
+        loginPinButton.disabled = false;
+
+      }
+
+    });
+
+
+    // Handle Enter key for PIN submission
+
+    pinInput.addEventListener('keypress', (e) => {
+
+      if (e.key === 'Enter') {
+
+        loginPinButton.click();
+
+      }
+
+    });
+
+
+    // Logout handler
+
+    logoutButton.addEventListener('click', () => {
+
+      console.log('Logging out...');
+
+      sessionStorage.removeItem('authToken');
+
+      mainContent.style.display = 'none';
+
+      pinLogin.style.display = 'block';
+
+      pinInput.value = '';
+
+      pinError.style.display = 'none';
+
+      errorDiv.style.display = 'none';
+
+      monthFilter.innerHTML = '<option value="">All</option>';
+
+      document.querySelector("tbody").innerHTML = '';
+
+      tableData.length = 0; // Clear data
+
+      downloadJpegButton.disabled = true;
+
+      downloadPdfButton.disabled = true;
+
+    });
+
+
+    function getMonthYearFromDate(dateStr) {
+
+      return !dateStr ? "" : new Date(dateStr).toLocaleString("default", { month: "long", year: "numeric" });
+
+    }
+
+
+    function cleanDollar(value) {
+
+      return value ? "$" + String(value).replace(/\$/g, '').trim() : "";
+
+    }
+
+
+    function renderTable(data) {
+
+      const tbody = document.querySelector("tbody");
+
+      tbody.innerHTML = "";
+
+      data.forEach(row => {
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `<td>${row.name || ''}</td><td>${row.phone || ''}</td><td>${row.email || ''}</td><td>${cleanDollar(row.huntPrice)}</td><td>${cleanDollar(row.balance)}</td><td>${row.arrival || ''}</td><td>${cleanDollar(row.amountDue)}</td><td>${row.dueDate || ''}</td><td>${row.dueMonth || ''}</td><td><span class="tag ${row.paymentType}">${row.paymentType}</span></td>`;
+
+        tbody.appendChild(tr);
+
+      });
+
+      dataTable.style.display = data.length ? "table" : "none";
+
+      downloadJpegButton.disabled = !data.length;
+
+      downloadPdfButton.disabled = !data.length;
+
+      document.getElementById("loading").style.display = "none";
+
+    }
+
+
+    function showError(message) {
+
+      errorDiv.textContent = message;
+
+      errorDiv.style.display = "block";
+
+      document.getElementById("loading").style.display = "none";
+
+    }
+
+
+    function updateMonthFilterOptions(data) {
+
+      monthFilter.innerHTML = '<option value="">All</option>';
+
+      const months = [...new Set(data.map(row => row.dueMonth).filter(Boolean))].sort((a, b) => new Date("1 " + a) - new Date("1 " + b));
+
+      months.forEach(month => {
+
+        const opt = document.createElement("option");
+
+        opt.value = month;
+
+        opt.textContent = month;
+
+        monthFilter.appendChild(opt);
+
+      });
+
+    }
+
+
+    function applyMonthFilter() {
+
+      const selected = monthFilter.value;
+
+      const filtered = selected ? tableData.filter(row => row.dueMonth === selected) : tableData;
+
+      renderTable(filtered);
+
+    }
+
+
+    monthFilter.addEventListener("change", applyMonthFilter);
+
+
+    document.getElementById("downloadJpegButton").addEventListener("click", async () => {
+
+      const selected = monthFilter.value;
+
+      const filteredData = selected ? tableData.filter(row => row.dueMonth === selected) : tableData;
+
+      if (!filteredData.length) {
+
+        alert("No data to export for the selected month.");
+
+        return;
+
+      }
+
+      const tempTable = document.createElement("table");
+
+      tempTable.className = "pdf-table";
+
+      tempTable.style.width = "1400px";
+
+      tempTable.style.borderCollapse = "collapse";
+
+      tempTable.innerHTML = `<thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Hunt Price</th><th>Balance</th><th>Arrival</th><th>Amount Due</th><th>Due Date</th><th>Due Month</th><th>Payment Type</th></tr></thead><tbody>${filteredData.map(row => `<tr><td>${row.name || ''}</td><td>${row.phone || ''}</td><td>${row.email || ''}</td><td>${cleanDollar(row.huntPrice)}</td><td>${cleanDollar(row.balance)}</td><td>${row.arrival || ''}</td><td>${cleanDollar(row.amountDue)}</td><td>${row.dueDate || ''}</td><td>${row.dueMonth || ''}</td><td><span class="tag ${row.paymentType}">${row.paymentType}</span></td></tr>`).join('')}</tbody>`;
+
+      tempTable.style.position = "absolute";
+
+      tempTable.style.left = "-9999px";
+
+      document.body.appendChild(tempTable);
+
+      const canvas = await html2canvas(tempTable, { scale: 2, useCORS: true, width: 1400, height: tempTable.offsetHeight, scrollX: 0, scrollY: 0 });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.9);
+
+      const link = document.createElement("a");
+
+      link.href = imgData;
+
+      link.download = `Unpaid_Payments_${(selected || "All_Months").replace(/\s/g, "_")}_Landscape.jpeg`;
+
+      link.click();
+
+      document.body.removeChild(tempTable);
+
+    });
+
+
+    document.getElementById("downloadPdfButton").addEventListener("click", () => {
+
+      const selected = monthFilter.value;
+
+      const filteredData = selected ? tableData.filter(row => row.dueMonth === selected) : tableData;
+
+      if (!filteredData.length) {
+
+        alert("No data to export for the selected month.");
+
+        return;
+
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape' });
+
+      doc.setFont("helvetica");
+
+      doc.setFontSize(16);
+
+      doc.text("Unpaid Customer Payments", 14, 20);
+
+      doc.setFontSize(12);
+
+      doc.text(`Filtered by: ${selected || "All Months"}`, 14, 30);
+
+      const headers = ["Name", "Phone", "Email", "Hunt Price", "Balance", "Arrival", "Amount Due", "Due Date", "Due Month", "Payment Type"];
+
+      const data = filteredData.map(row => [
+
+        row.name || '',
+
+        row.phone || '',
+
+        row.email || '',
+
+        cleanDollar(row.huntPrice),
+
+        cleanDollar(row.balance),
+
+        row.arrival || '',
+
+        cleanDollar(row.amountDue),
+
+        row.dueDate || '',
+
+        row.dueMonth || '',
+
+        row.paymentType || ''
+
+      ]);
+
+      doc.autoTable({
+
+        head: [headers],
+
+        body: data,
+
+        startY: 40,
+
+        theme: 'grid',
+
+        showHead: 'everyPage',
+
+        tableWidth: 'auto',
+
+        margin: { left: 20, right: 20 },
+
+        styles: { font: 'helvetica', fontSize: 10, cellPadding: 3, overflow: 'linebreak' },
+
+        headStyles: { fillColor: [243, 244, 246], textColor: [31, 41, 55], fontStyle: 'bold', fontSize: 10 },
+
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+
+        columnStyles: {
+
+          0: { cellWidth: 40 },
+
+          1: { cellWidth: 30 },
+
+          2: { cellWidth: 45 },
+
+          3: { cellWidth: 20 },
+
+          4: { cellWidth: 20 },
+
+          5: { cellWidth: 20 },
+
+          6: { cellWidth: 20 },
+
+          7: { cellWidth: 20 },
+
+          8: { cellWidth: 25 },
+
+          9: { cellWidth: 40 }
+
+        },
+
+        didParseCell: (data) => {
+
+          if (data.column.index === 9 && data.cell.text[0] && data.row.section === 'body') {
+
+            const type = data.cell.text[0];
+
+            data.cell.styles.fillColor = type === 'Final' ? [59, 130, 246] : type === 'Second' ? [16, 185, 129] : [255, 255, 255];
+
+            data.cell.styles.textColor = [255, 255, 255];
+
+          }
+
+        }
+
+      });
+
+      doc.save(`Unpaid_Payments_${(selected || "All_Months").replace(/\s/g, "_")}.pdf`);
+
+    });
+
+
+    async function fetchAllTabs() {
+
+      if (!sessionStorage.getItem('authToken')) return; // Skip fetching if not authenticated
+
+      document.getElementById("loading").style.display = "block";
+
+      tableData.length = 0; // Clear previous data
+
+      for (const gid of gids) {
+
+        const url = BASE_CSV_URL + gid;
+
+        await new Promise((resolve) => {
+
+          Papa.parse(url, {
+
+            download: true,
+
+            complete: (results) => {
+
+              results.data.slice(6).forEach(row => {
+
+                if (!row || row.length < 29 || !row[1] || row[1].toLowerCase() === "name") return;
+
+                const [name, phone, email, huntPrice, balance, arrival, secondP, secondDue, secondPaid, finalP, finalDue, finalPaid] = [row[1], row[3], row[4], row[5], row[6], row[17], row[23], row[24], row[25], row[26], row[27], row[28]];
+
+                if (secondP && secondDue && (!secondPaid || secondPaid.toLowerCase() !== "paid")) {
+
+                  tableData.push({ name, phone, email, huntPrice, balance, arrival, amountDue: secondP, dueDate: secondDue, dueMonth: getMonthYearFromDate(secondDue), paymentType: "Second" });
+
+                }
+
+                if (finalP && finalDue && (!finalPaid || finalPaid.toLowerCase() !== "paid")) {
+
+                  tableData.push({ name, phone, email, huntPrice, balance, arrival, amountDue: finalP, dueDate: finalDue, dueMonth: getMonthYearFromDate(finalDue), paymentType: "Final" });
+
+                }
+
+              });
+
+              resolve();
+
+            },
+
+            error: () => resolve()
+
